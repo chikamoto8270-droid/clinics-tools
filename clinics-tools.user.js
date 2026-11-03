@@ -1,18 +1,26 @@
 // ==UserScript==
 // @name         CLINICS ツールまとめ
 // @namespace    clinics-tools
-// @version      2026.1103.2345
+// @version      2026.1103.2348
 // @description  CLINICS用ツールをまとめて入れるスクリプト（CLINICS 負担割合表示／CLINICS 不要なレセプト指摘を隠す）。データは外部に送りません。
 // @match        https://karte.medley.life/*
 // @grant        GM_getValue
+// @grant        GM_registerMenuCommand
 // @grant        GM_setValue
 // @run-at       document-idle
 // @updateURL    https://raw.githubusercontent.com/chikamoto8270-droid/clinics-tools/main/clinics-tools.user.js
 // @downloadURL  https://raw.githubusercontent.com/chikamoto8270-droid/clinics-tools/main/clinics-tools.user.js
 // ==/UserScript==
 // このファイルは build.py で自動生成されます。直接編集せず、各 *.user.js を編集してください。
+// Tampermonkeyのメニューから機能ごとにオン・オフできる（設定はこのパソコンに保存）。
+function __tool(name, key, run) {
+  const off = GM_getValue(key, false);
+  GM_registerMenuCommand((off ? '⬜ ' : '✅ ') + name + (off ? '（オフ）' : '（オン）'), () => { GM_setValue(key, !off); location.reload(); });
+  if (off) return;
+  try { run(); } catch (e) { console.error('[' + name + ']', e); }
+}
 // ---- CLINICS 負担割合表示 (clinics-futan.user.js) ----
-try {
+__tool('CLINICS 負担割合表示', 'off:clinics-futan.user.js', () => {
 // CLINICS 負担割合表示 v2.3
 // カルテ画面で、見えない小さな画面に「保険情報」を開いて「補助」(負担割合) と公費を読み取り、患者番号の横に表示する。
 // 読み取るだけで、保存ボタンなどは押さない。データは外部に送らない。
@@ -370,11 +378,11 @@ try {
   setInterval(tick, 500);
   tick();
 })();
-} catch (e) { console.error("[clinics-futan.user.js]", e); }
+});
 
 // ---- CLINICS 不要なレセプト指摘を隠す (clinics-hide.user.js) ----
-try {
+__tool('CLINICS 不要なレセプト指摘を隠す', 'off:clinics-hide.user.js', () => {
 // CLINICS 不要なレセプト指摘を隠す v1.1
 // ベースアップ評価料(2)・リハビリテーション総合計画評価料1(2回目以降)の指摘行を画面上で隠す（データは変更しない）
 (()=>{const N=s=>s.normalize('NFKC').replace(/\s/g,'');const m=tr=>{const s=N(tr.innerText||tr.textContent);return (s.includes('ベースアップ評価料(2)')&&s.includes('ベースアップ評価料(1)')&&s.includes('ありません'))||(s.includes('リハビリテーション総合計画評価料1(2回目以降')&&s.includes('根拠となるリハビリテーション料'))};const run=()=>{document.querySelectorAll('tr').forEach(tr=>{if(tr.dataset.hz||!m(tr))return;tr.dataset.hz=1;const rs=[...tr.cells].filter(c=>c.rowSpan>1);if(!rs.length){tr.style.display='none';return}const n=Math.max(...rs.map(c=>c.rowSpan));let g=[tr],x=tr;for(let i=1;i<n;i++){x=x.nextElementSibling;if(!x)break;g.push(x)}if(g.every(r=>r===tr||m(r))){g.forEach(r=>{r.dataset.hz=1;r.style.display='none'})}else{[...tr.cells].forEach(c=>{if(c.rowSpan<=1)c.style.display='none'})}});const pg=e=>[...e.querySelectorAll('button,a,li,[role=button]')].some(b=>/^\d+$/.test(b.textContent.trim()));document.querySelectorAll('table').forEach(t=>{if(t.dataset.hz)return;const rs=[...t.rows].filter(r=>!r.querySelector('th'));if(!rs.length||!rs.every(r=>r.style.display==='none'))return;t.dataset.hz=1;let el=t;while(el.parentElement&&el.parentElement!==document.body&&!el.parentElement.matches('[role=dialog],[aria-modal=true]')&&el.parentElement.querySelectorAll('table').length===1&&!pg(el.parentElement))el=el.parentElement;el.style.display='none'})};run();if(!window.__hz){window.__hz=new MutationObserver(()=>{clearTimeout(window.__hzt);window.__hzt=setTimeout(run,100)});window.__hz.observe(document.body,{childList:true,subtree:true})}})();
-} catch (e) { console.error("[clinics-hide.user.js]", e); }
+});

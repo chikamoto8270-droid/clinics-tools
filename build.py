@@ -12,10 +12,12 @@ for f in sorted(glob.glob('*.user.js')):
     src = open(f, encoding='utf-8').read()
     m = re.match(r'\s*// ==UserScript==(.*?)// ==/UserScript==\n?', src, re.S)
     head, body = (m.group(1), src[m.end():]) if m else ('', src)
+    grants |= {'GM_getValue', 'GM_setValue', 'GM_registerMenuCommand'}
     grants |= {g for g in re.findall(r'@grant\s+(\S+)', head) if g != 'none'}
     name = (re.findall(r'@name\s+(.+)', head) or [f])[0].strip()
     names.append(name)
-    parts.append(f'// ---- {name} ({f}) ----\ntry {{\n{body.rstrip()}\n}} catch (e) {{ console.error("[{f}]", e); }}\n')
+    key = 'off:' + f
+    parts.append(f'// ---- {name} ({f}) ----\n__tool({name!r}, {key!r}, () => {{\n{body.rstrip()}\n}});\n')
 
 ver = datetime.datetime.now(datetime.timezone.utc).strftime('%Y.%m%d.%H%M')
 hdr = ['// ==UserScript==',
@@ -26,6 +28,13 @@ hdr = ['// ==UserScript==',
        '// @match        https://karte.medley.life/*']
 hdr += [f'// @grant        {g}' for g in sorted(grants)] or ['// @grant        none']
 hdr += ['// @run-at       document-idle', f'// @updateURL    {RAW}', f'// @downloadURL  {RAW}', '// ==/UserScript==',
-        '// このファイルは build.py で自動生成されます。直接編集せず、各 *.user.js を編集してください。']
+        '// このファイルは build.py で自動生成されます。直接編集せず、各 *.user.js を編集してください。',
+        '// Tampermonkeyのメニューから機能ごとにオン・オフできる（設定はこのパソコンに保存）。',
+        'function __tool(name, key, run) {',
+        '  const off = GM_getValue(key, false);',
+        "  GM_registerMenuCommand((off ? '⬜ ' : '✅ ') + name + (off ? '（オフ）' : '（オン）'), () => { GM_setValue(key, !off); location.reload(); });",
+        '  if (off) return;',
+        '  try { run(); } catch (e) { console.error(\'[\' + name + \']\', e); }',
+        '}']
 open(OUT, 'w', encoding='utf-8').write('\n'.join(hdr) + '\n' + '\n'.join(parts))
 print(OUT, ver, names)

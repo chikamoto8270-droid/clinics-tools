@@ -5,6 +5,7 @@ CLINICS（karte.medley.life）用の小さなツール。ブラウザの中だ�
 ## まとめてインストール（おすすめ）
 
 [clinics-tools.user.js](https://raw.githubusercontent.com/chikamoto8270-droid/clinics-tools/main/clinics-tools.user.js) を開いて「インストール」すると、下のツールが全部入ります。新しいツールが増えたときも自動で追加・更新されます。
+機能ごとのオン・オフは、CLINICSを開いた状態でTampermonkeyのアイコンを押すと出るメニュー（✅ オン／⬜ オフ）で切り替えられます。
 これを入れた場合は、個別に入れたスクリプト（clinics-futan / clinics-hide）はTampermonkeyから削除してください（二重に動くため）。
 
 開発メモ: ツールは個別の `*.user.js` として追加・編集します。`clinics-tools.user.js` は `build.py` で生成され、main に push すると GitHub Actions が自動で作り直します（直接編集しない）。
