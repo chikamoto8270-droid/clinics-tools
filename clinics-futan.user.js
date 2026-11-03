@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         CLINICS 負担割合表示
 // @namespace    clinics-tools
-// @version      1.5
+// @version      2.0
 // @description  CLINICSのカルテ画面に、患者の自己負担割合（保険情報の「補助」）と公費を表示します。データは外部に送りません。
 // @match        https://karte.medley.life/*
 // @grant        GM_getValue
@@ -10,7 +10,7 @@
 // @updateURL    https://raw.githubusercontent.com/chikamoto8270-droid/clinics-tools/main/clinics-futan.user.js
 // @downloadURL  https://raw.githubusercontent.com/chikamoto8270-droid/clinics-tools/main/clinics-futan.user.js
 // ==/UserScript==
-// CLINICS 負担割合表示 v1.5
+// CLINICS 負担割合表示 v2.0
 // カルテ画面で、見えない小さな画面に「保険情報」を開いて「補助」(負担割合) と公費を読み取り、患者番号の横に表示する。
 // 読み取るだけで、保存ボタンなどは押さない。データは外部に送らない。
 (() => {
@@ -122,6 +122,53 @@
     return null;
   }
 
+  // ---- 速い方法：CLINICSが使っているデータ（レセコンの保険・公費の組み合わせ）を直接読む ----
+  const getJson = async url => {
+    const r = await fetch(url, { credentials: 'same-origin', headers: { Accept: 'application/json' } });
+    if (!r.ok) throw new Error(r.status);
+    return r.json();
+  };
+  const today = () => { const d = new Date(); return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); };
+  const validNow = (s, e) => { const t = today(); return (!s || s <= t) && (!e || t <= e); };
+  const rateText = r => {
+    const v = parseFloat(r);
+    if (isNaN(v)) return '';
+    if (v === 0) return '負担なし';
+    const w = Math.round(v * 100) / 10;
+    return Number.isInteger(w) ? w + '割' : Math.round(v * 100) + '%';
+  };
+  async function fetchInfoApi(pid, no) {
+    const [pt, ins] = await Promise.all([
+      no ? getJson('/api/d/patients/' + pid) : Promise.resolve(null),
+      getJson('/api/d/orca_patient_insurances?patient_id=' + pid)
+    ]);
+    if (no) {
+      const cn = pt && pt.data && (pt.data.carteNo || pt.data.orcaPatientId);
+      if (String(cn || '') !== no) throw new Error('別の患者');
+    }
+    const d = (ins && ins.data) || {};
+    const isJihi = x => x.InsuranceProvider_Class === '980' || /自費/.test(x.InsuranceProvider_WholeName || '');
+    const base = [];
+    for (const x of d.insurances || []) {
+      if (isJihi(x) || !validNow(x.Certificate_StartDate, x.Certificate_ExpiredDate)) continue;
+      const v = fmtHojo(x.HealthInsuredPerson_Assistance_Name || '') || '設定なし';
+      if (!base.includes(v)) base.push(v);
+    }
+    const combos = [];
+    for (const c of d.insurance_combinations || []) {
+      if (isJihi(c) || !validNow(c.Insurance_Combination_StartDate, c.Insurance_Combination_ExpiredDate)) continue;
+      const pubs = c.PublicInsurance_Info || [];
+      if (!pubs.length) continue;
+      const money = pubs.map(p => parseInt(p.Money_Outpatient, 10) || 0).filter(m => m > 0);
+      combos.push({
+        name: (c.Insurance_Combination_Name || '').trim().replace(/\s+/g, '＋'),
+        rate: rateText(c.Insurance_Combination_Rate_Outpatient),
+        money: money.length ? Math.max(...money) : 0
+      });
+    }
+    return { api: true, base, combos, at: Date.now() };
+  }
+
   async function fetchInfo(pid, no) {
     {
       const doc = await openWorker(pid, no);
@@ -212,6 +259,17 @@
     b.style.color = warn ? '#888' : '#222';
   };
   const render = info => {
+    if (info.api) {
+      let t = '負担 ' + (info.base.length ? info.base.join('/') : '保険なし');
+      for (const c of info.combos) {
+        const m = c.money ? c.money.toLocaleString('ja-JP') + '円' : '';
+        const r = c.money && c.rate === '負担なし' ? m + 'まで' : c.rate + (m ? '（上限 ' + m + '）' : '');
+        t += '　｜ ' + c.name + ' ' + r;
+      }
+      show(t, false);
+      badge.title = '外来の負担（レセコンの保険組み合わせより）読み取り: ' + new Date(info.at).toLocaleString('ja-JP') + '（クリックで読み直し）';
+      return;
+    }
     const vals = [...new Set(info.futan.map(f => f.val || '設定なし'))];
     let t = '負担 ' + (vals.length ? vals.join('/') : '保険なし');
     const base = (() => { const m = vals.join('').match(/(\d+)割/); return m ? +m[1] : null; })();
@@ -276,7 +334,9 @@
       if (cached) render(cached);
       let info = null;
       for (const pid of pids) {
-        try { info = await fetchInfo(pid, no); } catch (e) { info = null; }
+        let wrong = false;
+        try { info = await fetchInfoApi(pid, no); } catch (e) { info = null; wrong = e.message === '別の患者'; }
+        if (!info && !wrong && location.pathname === key) { try { info = await fetchInfo(pid, no); } catch (e) { info = null; } }
         if (location.pathname !== key) return;
         if (info) { if (no) { await store.set('no:' + no, pid); await store.set('info:' + no, info); } break; }
       }
