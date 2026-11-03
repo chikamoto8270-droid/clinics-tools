@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         CLINICS 負担割合表示
 // @namespace    clinics-tools
-// @version      2.0
+// @version      2.1
 // @description  CLINICSのカルテ画面に、患者の自己負担割合（保険情報の「補助」）と公費を表示します。データは外部に送りません。
 // @match        https://karte.medley.life/*
 // @grant        GM_getValue
@@ -10,7 +10,7 @@
 // @updateURL    https://raw.githubusercontent.com/chikamoto8270-droid/clinics-tools/main/clinics-futan.user.js
 // @downloadURL  https://raw.githubusercontent.com/chikamoto8270-droid/clinics-tools/main/clinics-futan.user.js
 // ==/UserScript==
-// CLINICS 負担割合表示 v2.0
+// CLINICS 負担割合表示 v2.1
 // カルテ画面で、見えない小さな画面に「保険情報」を開いて「補助」(負担割合) と公費を読み取り、患者番号の横に表示する。
 // 読み取るだけで、保存ボタンなどは押さない。データは外部に送らない。
 (() => {
@@ -148,11 +148,20 @@
     }
     const d = (ins && ins.data) || {};
     const isJihi = x => x.InsuranceProvider_Class === '980' || /自費/.test(x.InsuranceProvider_WholeName || '');
-    const base = [];
+    const base = [], rel = [], kubun = [];
     for (const x of d.insurances || []) {
       if (isJihi(x) || !validNow(x.Certificate_StartDate, x.Certificate_ExpiredDate)) continue;
       const v = fmtHojo(x.HealthInsuredPerson_Assistance_Name || '') || '設定なし';
       if (!base.includes(v)) base.push(v);
+      const r = x.RelationToInsuredPerson === '1' ? '本人' : x.RelationToInsuredPerson ? '家族' : '';
+      if (r && !rel.includes(r)) rel.push(r);
+    }
+    // 高額療養費の所得区分（限度額適用認定など）
+    for (const p of d.public_insurances || []) {
+      if (!/高額|限度/.test(p.PublicInsurance_Name || '')) continue;
+      if (!validNow(p.Certificate_IssuedDate, p.Certificate_ExpiredDate)) continue;
+      const k = (p.PublicInsuredPerson_Number || '').normalize('NFKC').trim();
+      if (k && !kubun.includes(k)) kubun.push(k);
     }
     const combos = [];
     for (const c of d.insurance_combinations || []) {
@@ -166,7 +175,7 @@
         money: money.length ? Math.max(...money) : 0
       });
     }
-    return { api: true, base, combos, at: Date.now() };
+    return { api: true, base, rel, kubun, combos, at: Date.now() };
   }
 
   async function fetchInfo(pid, no) {
@@ -261,6 +270,8 @@
   const render = info => {
     if (info.api) {
       let t = '負担 ' + (info.base.length ? info.base.join('/') : '保険なし');
+      const extra = [...(info.rel || []), ...(info.kubun || []).map(k => '所得区分 ' + k)];
+      if (extra.length) t += '（' + extra.join('・') + '）';
       for (const c of info.combos) {
         const m = c.money ? c.money.toLocaleString('ja-JP') + '円' : '';
         const r = c.money && c.rate === '負担なし' ? m + 'まで' : c.rate + (m ? '（上限 ' + m + '）' : '');
