@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         CLINICS 負担割合表示
 // @namespace    clinics-tools
-// @version      1.4
+// @version      1.5
 // @description  CLINICSのカルテ画面に、患者の自己負担割合（保険情報の「補助」）と公費を表示します。データは外部に送りません。
 // @match        https://karte.medley.life/*
 // @grant        GM_getValue
@@ -10,7 +10,7 @@
 // @updateURL    https://raw.githubusercontent.com/chikamoto8270-droid/clinics-tools/main/clinics-futan.user.js
 // @downloadURL  https://raw.githubusercontent.com/chikamoto8270-droid/clinics-tools/main/clinics-futan.user.js
 // ==/UserScript==
-// CLINICS 負担割合表示 v1.4
+// CLINICS 負担割合表示 v1.5
 // カルテ画面で、見えない小さな画面に「保険情報」を開いて「補助」(負担割合) と公費を読み取り、患者番号の横に表示する。
 // 読み取るだけで、保存ボタンなどは押さない。データは外部に送らない。
 (() => {
@@ -134,6 +134,7 @@
           const t2 = readTable(doc, '保険者番号'); const row = t2 && t2.rows[i];
           if (!row) break;
           if (!isValidStatus(st >= 0 ? (row.cells[st] || {}).textContent : '')) continue;
+          if (kind >= 0 && /自費/.test((row.cells[kind] || {}).textContent || '')) continue; // 自費の行は読まない
           const btns = row.querySelectorAll('button,a,[role=button]');
           const pen = btns[btns.length - 1];
           if (!pen) continue;
