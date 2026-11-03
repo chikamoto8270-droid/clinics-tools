@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         CLINICS 負担割合表示
 // @namespace    clinics-tools
-// @version      2.1
+// @version      2.2
 // @description  CLINICSのカルテ画面に、患者の自己負担割合（保険情報の「補助」）と公費を表示します。データは外部に送りません。
 // @match        https://karte.medley.life/*
 // @grant        GM_getValue
@@ -10,7 +10,7 @@
 // @updateURL    https://raw.githubusercontent.com/chikamoto8270-droid/clinics-tools/main/clinics-futan.user.js
 // @downloadURL  https://raw.githubusercontent.com/chikamoto8270-droid/clinics-tools/main/clinics-futan.user.js
 // ==/UserScript==
-// CLINICS 負担割合表示 v2.1
+// CLINICS 負担割合表示 v2.2
 // カルテ画面で、見えない小さな画面に「保険情報」を開いて「補助」(負担割合) と公費を読み取り、患者番号の横に表示する。
 // 読み取るだけで、保存ボタンなどは押さない。データは外部に送らない。
 (() => {
@@ -278,7 +278,9 @@
         t += '　｜ ' + c.name + ' ' + r;
       }
       show(t, false);
-      badge.title = '外来の負担（レセコンの保険組み合わせより）読み取り: ' + new Date(info.at).toLocaleString('ja-JP') + '（クリックで読み直し）';
+      const KB = { 'ア': '年収 約1,160万円〜', 'イ': '年収 約770〜1,160万円', 'ウ': '年収 約370〜770万円', 'エ': '年収 〜約370万円', 'オ': '住民税非課税' };
+      const kb = (info.kubun || []).map(k => KB[k] ? '所得区分 ' + k + '：' + KB[k] + '（70歳未満の目安）\n' : '').join('');
+      badge.title = kb + '外来の負担（レセコンの保険組み合わせより）読み取り: ' + new Date(info.at).toLocaleString('ja-JP') + '（クリックで読み直し）';
       return;
     }
     const vals = [...new Set(info.futan.map(f => f.val || '設定なし'))];
