@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         CLINICS 負担割合表示
 // @namespace    clinics-tools
-// @version      2.2
+// @version      2.3
 // @description  CLINICSのカルテ画面に、患者の自己負担割合（保険情報の「補助」）と公費を表示します。データは外部に送りません。
 // @match        https://karte.medley.life/*
 // @grant        GM_getValue
@@ -10,7 +10,7 @@
 // @updateURL    https://raw.githubusercontent.com/chikamoto8270-droid/clinics-tools/main/clinics-futan.user.js
 // @downloadURL  https://raw.githubusercontent.com/chikamoto8270-droid/clinics-tools/main/clinics-futan.user.js
 // ==/UserScript==
-// CLINICS 負担割合表示 v2.2
+// CLINICS 負担割合表示 v2.3
 // カルテ画面で、見えない小さな画面に「保険情報」を開いて「補助」(負担割合) と公費を読み取り、患者番号の横に表示する。
 // 読み取るだけで、保存ボタンなどは押さない。データは外部に送らない。
 (() => {
@@ -163,11 +163,16 @@
       const k = (p.PublicInsuredPerson_Number || '').normalize('NFKC').trim();
       if (k && !kubun.includes(k)) kubun.push(k);
     }
-    const combos = [];
+    const combos = [], baseRate = [];
     for (const c of d.insurance_combinations || []) {
       if (isJihi(c) || !validNow(c.Insurance_Combination_StartDate, c.Insurance_Combination_ExpiredDate)) continue;
       const pubs = c.PublicInsurance_Info || [];
-      if (!pubs.length) continue;
+      if (!pubs.length) {
+        // 公費なしの組み合わせ ＝ 保険だけのときの実際の負担（補助が空欄でも年齢などからレセコンが決めた値）
+        const r = rateText(c.Insurance_Combination_Rate_Outpatient);
+        if (r && c.InsuranceProvider_Class && !baseRate.includes(r)) baseRate.push(r);
+        continue;
+      }
       const money = pubs.map(p => parseInt(p.Money_Outpatient, 10) || 0).filter(m => m > 0);
       combos.push({
         name: (c.Insurance_Combination_Name || '').trim().replace(/\s+/g, '＋'),
@@ -175,7 +180,8 @@
         money: money.length ? Math.max(...money) : 0
       });
     }
-    return { api: true, base, rel, kubun, combos, at: Date.now() };
+    const baseOut = baseRate.length ? baseRate : base;
+    return { api: true, base: baseOut, rel, kubun, combos, at: Date.now() };
   }
 
   async function fetchInfo(pid, no) {
