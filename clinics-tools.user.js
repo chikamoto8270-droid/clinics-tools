@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         CLINICS ツールまとめ
 // @namespace    clinics-tools
-// @version      2026.1103.2348
+// @version      2026.1103.2349
 // @description  CLINICS用ツールをまとめて入れるスクリプト（CLINICS 負担割合表示／CLINICS 不要なレセプト指摘を隠す）。データは外部に送りません。
 // @match        https://karte.medley.life/*
 // @grant        GM_getValue
