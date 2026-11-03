@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         CLINICS 負担割合表示
 // @namespace    clinics-tools
-// @version      1.2
+// @version      1.3
 // @description  CLINICSのカルテ画面に、患者の自己負担割合（保険情報の「補助」）と公費を表示します。データは外部に送りません。
 // @match        https://karte.medley.life/*
 // @grant        GM_getValue
@@ -10,7 +10,7 @@
 // @updateURL    https://raw.githubusercontent.com/chikamoto8270-droid/clinics-tools/main/clinics-futan.user.js
 // @downloadURL  https://raw.githubusercontent.com/chikamoto8270-droid/clinics-tools/main/clinics-futan.user.js
 // ==/UserScript==
-// CLINICS 負担割合表示 v1.2
+// CLINICS 負担割合表示 v1.3
 // カルテ画面で、見えない小さな画面に「保険情報」を開いて「補助」(負担割合) と公費を読み取り、患者番号の横に表示する。
 // 読み取るだけで、保存ボタンなどは押さない。データは外部に送らない。
 (() => {
@@ -31,14 +31,16 @@
   };
 
   // 画面左上の患者番号（例 99999963）
-  const findPatientNoEl = doc => {
-    const els = doc.querySelectorAll('body *');
-    for (const el of els) {
-      if (el.children.length) continue;
-      const t = (el.textContent || '').trim();
+  const findPatientNo = doc => {
+    const w = doc.createTreeWalker(doc.body, NodeFilter.SHOW_TEXT);
+    let n;
+    while ((n = w.nextNode())) {
+      const t = (n.nodeValue || '').trim();
       if (!/^\d{6,10}$/.test(t)) continue;
+      const el = n.parentElement;
+      if (!el || el.closest('#clinics-futan-badge')) continue;
       const r = el.getBoundingClientRect();
-      if (r.width && r.top < 250 && r.left < 700) return el;
+      if (r.width && r.top < 320 && r.left < 700) return { el, no: t };
     }
     return null;
   };
@@ -161,9 +163,9 @@
       badge.title = 'クリックで読み直し';
       badge.addEventListener('click', () => { lastKey = ''; tick(); });
     }
-    const no = findPatientNoEl(document);
-    if (no && badge.previousElementSibling !== no) no.insertAdjacentElement('afterend', badge);
-    if (!no && !badge.isConnected) {
+    const pn = findPatientNo(document);
+    if (pn && badge.parentElement !== pn.el) { badge.style.position = ''; pn.el.appendChild(badge); }
+    if (!pn && !badge.isConnected) {
       badge.style.position = 'fixed'; badge.style.top = '96px'; badge.style.left = '330px'; badge.style.zIndex = 99999;
       document.body.appendChild(badge);
     }
@@ -203,8 +205,8 @@
       m = e.name.match(/patients\/([0-9a-f]{24})/);
       if (m) return m[1];
     }
-    const no = findPatientNoEl(document);
-    if (no) return await store.get('no:' + no.textContent.trim());
+    const pn = findPatientNo(document);
+    if (pn) return await store.get('no:' + pn.no);
     return null;
   }
 
@@ -212,11 +214,11 @@
   async function rememberPid() {
     const m = location.pathname.match(/\/d\/patients\/([0-9a-f]{24})/);
     if (!m) return;
-    const no = findPatientNoEl(document);
-    if (no) await store.set('no:' + no.textContent.trim(), m[1]);
+    const pn = findPatientNo(document);
+    if (pn) await store.set('no:' + pn.no, m[1]);
   }
 
-  let lastKey = '', busy = false;
+  let lastKey = '', busy = false, waitTicks = 0;
   async function tick() {
     if (busy) return;
     rememberPid();
@@ -224,8 +226,9 @@
       if (badge) badge.remove();
       return;
     }
-    if (!findPatientNoEl(document)) return; // まだ画面が出ていない
     const key = location.pathname;
+    if (!findPatientNo(document) && waitTicks++ < 8) return; // まだ画面が出ていない
+    waitTicks = 0;
     if (key === lastKey) { if (badge) ensureBadge(); return; }
     busy = true; lastKey = key;
     try {
