@@ -2,7 +2,7 @@
 // @name         CLINICS 便利ボタン
 // @menu         便利ボタン：レセプト結果確認のページ移動・指摘まとめ／受付一覧の医師別集計
 // @namespace    clinics-tools
-// @version      1.3
+// @version      1.4
 // @description  次の3つが使えます。【ページ移動】レセプト一括出力の結果確認で、番号を入れたページへ一気に移動（空欄なら、チェックが終わっていない最初のページまで進む）。【指摘まとめ】結果確認の全ページを読み取り、不要な指摘を除いて1つの一覧に（CSV保存・印刷）。【担当医師別の集計】受付一覧の全ページを読み取り、担当医師ごとに午前（13:30まで）・午後の患者数を数える。メニュー、またはレセプト画面・受付一覧の右下のボタンから使います。データは外部に送りません。
 // @match        https://karte.medley.life/*
 // @grant        GM_registerMenuCommand
@@ -27,11 +27,9 @@
   // レセプト一括出力の画面と受付一覧では、右下に小さなボタンも出す
   const BAR = 'clinics-buttons-bar';
   const sync = () => {
-    // 受付一覧は「担当医師」と「受付」の列がある表が見えているかで判定する
-    const reception = [...document.querySelectorAll('table')].some(t => {
-      const h = (t.querySelector('tr') || {}).innerText || '';
-      return t.getClientRects().length && /担当医師/.test(h) && /受付/.test(h);
-    });
+    // 受付一覧は「担当医師」という見出しが見えているかで判定する
+    const reception = [...document.querySelectorAll('th,[role=columnheader],thead *,div,span')].some(e =>
+      e.children.length === 0 && (e.textContent || '').trim() === '担当医師' && e.getClientRects().length);
     const kind = location.pathname.startsWith('/d/settings/receipts') ? 'receipt' : reception ? 'reception' : '';
     let bar = document.getElementById(BAR);
     if (bar && bar.dataset.kind !== kind) { bar.remove(); bar = null; }

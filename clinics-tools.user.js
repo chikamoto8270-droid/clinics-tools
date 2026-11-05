@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         CLINICS ツールまとめ
 // @namespace    clinics-tools
-// @version      2026.1105.0242
+// @version      2026.1105.0245
 // @description  CLINICS用ツールをまとめて入れるスクリプト（CLINICS 便利ボタン／CLINICS 負担割合表示／CLINICS 不要なレセプト指摘を隠す）。データは外部に送りません。
 // @match        https://karte.medley.life/*
 // @grant        GM_getValue
@@ -39,11 +39,9 @@ __tool('便利ボタン：レセプト結果確認のページ移動・指摘ま
   // レセプト一括出力の画面と受付一覧では、右下に小さなボタンも出す
   const BAR = 'clinics-buttons-bar';
   const sync = () => {
-    // 受付一覧は「担当医師」と「受付」の列がある表が見えているかで判定する
-    const reception = [...document.querySelectorAll('table')].some(t => {
-      const h = (t.querySelector('tr') || {}).innerText || '';
-      return t.getClientRects().length && /担当医師/.test(h) && /受付/.test(h);
-    });
+    // 受付一覧は「担当医師」という見出しが見えているかで判定する
+    const reception = [...document.querySelectorAll('th,[role=columnheader],thead *,div,span')].some(e =>
+      e.children.length === 0 && (e.textContent || '').trim() === '担当医師' && e.getClientRects().length);
     const kind = location.pathname.startsWith('/d/settings/receipts') ? 'receipt' : reception ? 'reception' : '';
     let bar = document.getElementById(BAR);
     if (bar && bar.dataset.kind !== kind) { bar.remove(); bar = null; }
