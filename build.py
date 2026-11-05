@@ -5,7 +5,7 @@ import glob, re, datetime
 OUT = 'clinics-tools.user.js'
 RAW = 'https://raw.githubusercontent.com/chikamoto8270-droid/clinics-tools/main/' + OUT
 
-parts, grants, names = [], set(), []
+parts, grants, names, helps = [], set(), [], []
 for f in sorted(glob.glob('*.user.js')):
     if f == OUT:
         continue
@@ -16,6 +16,8 @@ for f in sorted(glob.glob('*.user.js')):
     grants |= {g for g in re.findall(r'@grant\s+(\S+)', head) if g != 'none'}
     name = (re.findall(r'@name\s+(.+)', head) or [f])[0].strip()
     label = (re.findall(r'@menu\s+(.+)', head) or [name])[0].strip()
+    desc = (re.findall(r'@description\s+(.+)', head) or [''])[0].strip()
+    helps.append('■ ' + label + '\n' + desc)
     names.append(name)
     key = 'off:' + f
     parts.append(f'// ---- {name} ({f}) ----\n__tool({label!r}, {key!r}, () => {{\n{body.rstrip()}\n}});\n')
@@ -37,5 +39,7 @@ hdr += ['// @run-at       document-idle', f'// @updateURL    {RAW}', f'// @downl
         '  if (off) return;',
         '  try { run(); } catch (e) { console.error(\'[\' + name + \']\', e); }',
         '}']
-open(OUT, 'w', encoding='utf-8').write('\n'.join(hdr) + '\n' + '\n'.join(parts))
+helptext = '\n\n'.join(helps) + '\n\n各機能は、このメニューの「✅ オン／⬜ オフ」を押すと切り替えられます。'
+help_js = f"GM_registerMenuCommand('ℹ 各機能の説明を見る', () => alert({helptext!r}));\n"
+open(OUT, 'w', encoding='utf-8').write('\n'.join(hdr) + '\n' + help_js + '\n'.join(parts))
 print(OUT, ver, names)
