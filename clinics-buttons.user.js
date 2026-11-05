@@ -2,8 +2,8 @@
 // @name         CLINICS 便利ボタン
 // @menu         便利ボタン：レセプト結果確認のページ移動・指摘まとめ／受付一覧の医師別集計
 // @namespace    clinics-tools
-// @version      1.2
-// @description  次の3つが使えます。【ページ移動】レセプト一括出力の結果確認で、番号を入れたページへ一気に移動（空欄なら、チェックが終わっていない最初のページまで進む）。【指摘まとめ】結果確認の全ページを読み取り、不要な指摘を除いて1つの一覧に（CSV保存・印刷）。【担当医師別の集計】受付一覧の全ページを読み取り、担当医師ごとに午前（13:30まで）・午後の患者数を数える。メニューまたはレセプト画面右下のボタンから使います。データは外部に送りません。
+// @version      1.3
+// @description  次の3つが使えます。【ページ移動】レセプト一括出力の結果確認で、番号を入れたページへ一気に移動（空欄なら、チェックが終わっていない最初のページまで進む）。【指摘まとめ】結果確認の全ページを読み取り、不要な指摘を除いて1つの一覧に（CSV保存・印刷）。【担当医師別の集計】受付一覧の全ページを読み取り、担当医師ごとに午前（13:30まで）・午後の患者数を数える。メニュー、またはレセプト画面・受付一覧の右下のボタンから使います。データは外部に送りません。
 // @match        https://karte.medley.life/*
 // @grant        GM_registerMenuCommand
 // @run-at       document-idle
@@ -24,16 +24,27 @@
   GM_registerMenuCommand('　└ レセプト結果確認：全ページの指摘を1つの一覧にまとめる（CSV・印刷）', summary);
   GM_registerMenuCommand('　└ 受付一覧：担当医師別に午前・午後の患者数を数える', doctorCount);
 
-  // レセプト一括出力の画面では、右下に小さなボタンも出す
+  // レセプト一括出力の画面と受付一覧では、右下に小さなボタンも出す
   const BAR = 'clinics-buttons-bar';
   const sync = () => {
-    const want = location.pathname.startsWith('/d/settings/receipts');
+    // 受付一覧は「担当医師」と「受付」の列がある表が見えているかで判定する
+    const reception = [...document.querySelectorAll('table')].some(t => {
+      const h = (t.querySelector('tr') || {}).innerText || '';
+      return t.getClientRects().length && /担当医師/.test(h) && /受付/.test(h);
+    });
+    const kind = location.pathname.startsWith('/d/settings/receipts') ? 'receipt' : reception ? 'reception' : '';
     let bar = document.getElementById(BAR);
+    if (bar && bar.dataset.kind !== kind) { bar.remove(); bar = null; }
+    const want = !!kind;
     if (want && !bar) {
       bar = document.createElement('div');
       bar.id = BAR;
+      bar.dataset.kind = kind;
       bar.style.cssText = 'position:fixed;right:12px;bottom:12px;z-index:2147483000;display:flex;gap:6px';
-      [['ページ移動', pageJump, '番号を入れたページへ移動します。空欄でOKならチェックが終わっていないページまで進みます'], ['指摘まとめ', summary, '全ページの指摘を読み取り、不要な指摘を除いて1つの一覧にします（CSV保存・印刷）']].forEach(([label, fn, tip]) => {
+      const items = kind === 'receipt'
+        ? [['ページ移動', pageJump, '番号を入れたページへ移動します。空欄でOKならチェックが終わっていないページまで進みます'], ['指摘まとめ', summary, '全ページの指摘を読み取り、不要な指摘を除いて1つの一覧にします（CSV保存・印刷）']]
+        : [['医師別の患者数を集計', doctorCount, '受付一覧の全ページを読み取り、担当医師ごとに午前（13:30まで）・午後の患者数を数えます']];
+      items.forEach(([label, fn, tip]) => {
         const b = document.createElement('button');
         b.textContent = label;
         b.title = tip;
