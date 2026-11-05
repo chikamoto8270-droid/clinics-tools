@@ -1,7 +1,8 @@
 // ==UserScript==
 // @name         CLINICS 負担割合表示
+// @menu         負担割合表示：カルテの患者番号の横に自己負担割合を表示
 // @namespace    clinics-tools
-// @version      2.3
+// @version      2.4
 // @description  CLINICSのカルテ画面に、患者の自己負担割合（保険情報の「補助」）と公費を表示します。データは外部に送りません。
 // @match        https://karte.medley.life/*
 // @grant        GM_getValue

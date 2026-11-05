@@ -15,9 +15,10 @@ for f in sorted(glob.glob('*.user.js')):
     grants |= {'GM_getValue', 'GM_setValue', 'GM_registerMenuCommand'}
     grants |= {g for g in re.findall(r'@grant\s+(\S+)', head) if g != 'none'}
     name = (re.findall(r'@name\s+(.+)', head) or [f])[0].strip()
+    label = (re.findall(r'@menu\s+(.+)', head) or [name])[0].strip()
     names.append(name)
     key = 'off:' + f
-    parts.append(f'// ---- {name} ({f}) ----\n__tool({name!r}, {key!r}, () => {{\n{body.rstrip()}\n}});\n')
+    parts.append(f'// ---- {name} ({f}) ----\n__tool({label!r}, {key!r}, () => {{\n{body.rstrip()}\n}});\n')
 
 ver = datetime.datetime.now(datetime.timezone.utc).strftime('%Y.%m%d.%H%M')
 hdr = ['// ==UserScript==',
@@ -32,7 +33,7 @@ hdr += ['// @run-at       document-idle', f'// @updateURL    {RAW}', f'// @downl
         '// Tampermonkeyのメニューから機能ごとにオン・オフできる（設定はこのパソコンに保存）。',
         'function __tool(name, key, run) {',
         '  const off = GM_getValue(key, false);',
-        "  GM_registerMenuCommand((off ? '⬜ ' : '✅ ') + name + (off ? '（オフ）' : '（オン）'), () => { GM_setValue(key, !off); location.reload(); });",
+        "  GM_registerMenuCommand((off ? '⬜ オフ｜' : '✅ オン｜') + name, () => { GM_setValue(key, !off); location.reload(); });",
         '  if (off) return;',
         '  try { run(); } catch (e) { console.error(\'[\' + name + \']\', e); }',
         '}']

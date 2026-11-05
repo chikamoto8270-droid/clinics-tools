@@ -1,7 +1,8 @@
 // ==UserScript==
 // @name         CLINICS 不要なレセプト指摘を隠す
+// @menu         指摘を隠す：レセプト結果確認の消せない指摘を非表示
 // @namespace    clinics-tools
-// @version      1.1
+// @version      1.2
 // @description  レセプトチェックの結果確認で、ベースアップ評価料(2)とリハビリテーション総合計画評価料1(2回目以降)の指摘行を自動で隠します。データの変更や外部送信はしません。
 // @match        https://karte.medley.life/*
 // @grant        none

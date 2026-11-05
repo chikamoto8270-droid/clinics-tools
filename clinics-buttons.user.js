@@ -1,7 +1,8 @@
 // ==UserScript==
 // @name         CLINICS 便利ボタン
+// @menu         便利ボタン：ページ移動・指摘まとめ・医師別集計
 // @namespace    clinics-tools
-// @version      1.0
+// @version      1.1
 // @description  前はブックマークで使っていた「ページ移動」「指摘まとめ」「担当医師別の集計」を、Tampermonkeyのメニューと画面のボタンから使えるようにします。データは外部に送りません。
 // @match        https://karte.medley.life/*
 // @grant        GM_registerMenuCommand
